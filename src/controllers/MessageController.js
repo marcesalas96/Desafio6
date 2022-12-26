@@ -1,35 +1,39 @@
 const fs = require("fs")
 let messages = []
 module.exports = class MessageController{
-    constructor(filePath){
-        this.filePath = filePath 
-        
+    constructor(connectionSQl, tableName) {
+        this.connectionSQl = connectionSQl
+        this.tableName = tableName
+    }
+    async createChatTable() {
+        try {
+            await this.connectionSQl.schema.createTable(this.tableName, table => {
+                table.increments('id').primary()
+                table.string('email', 50).notNullable()
+                table.float('fyh').notNullable()
+                table.string('message', 300).notNullable()
+            })
+
+            console.log("Table created!")
+        } catch (e) {
+            console.error("Error:", e)
+        }
+    }
+    async tableExist() {
+        return await this.connectionSQl.schema.hasTable(this.tableName)
     }
     async saveMessage (object){
         try {
-            const data = await fs.promises.readFile(`./src/db/${this.filePath}`, 'utf-8')
-            if(!data){
-                object.id = 1
-                messages.push(object)
-                console.log(object);
-                await fs.promises.writeFile(`./src/db/${this.filePath}`, JSON.stringify(messages))
-            }
-            else{
-                messages = JSON.parse(data)
-                const lastIndex = messages.length - 1
-                const lastId = messages[lastIndex].id
-                object.id = lastId + 1
-                messages.push(object)
-                await fs.promises.writeFile(`./src/db/${this.filePath}`, JSON.stringify(messages))
-            }
+            await this.connectionSQl(this.tableName).insert(object)
+            console.log('Message added')
         } catch (error) {
             console.error("Error en save(Object):", error)
         }
     }
     async getAll(){
         try {
-            const messages = await fs.promises.readFile(`./src/db/${this.filePath}`, "utf-8")
-            return messages ? JSON.parse(messages) : false
+            const messages = await this.connectionSQl.from(this.tableName).select('*')
+            return messages ? messages : null
         } catch (error) {
             console.error("Error en getAll():", error)
         }

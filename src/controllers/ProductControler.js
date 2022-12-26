@@ -1,10 +1,30 @@
 let products = []
 class ProductControler {
-    constructor() {
+    constructor(connection, tableName) {
+        this.connection = connection
+        this.tableName = tableName
     }
-    getAll(req, res) {
+
+    async createProductTable() {
         try {
-            return products
+            await this.connection.schema.createTable(this.tableName, table => {
+                table.increments('id').primary()
+                table.string('tittle', 50).notNullable()
+                table.float('price').notNullable()
+                table.string('thumbnail', 100).notNullable()
+            })
+            console.log("Table created!")
+        } catch (e) {
+            console.error("Error:", e)
+        }
+    }
+    async tableExist(){
+        return await this.connection.schema.hasTable(this.tableName)
+    }
+    
+    async getAll(req, res) {
+        try {
+            return await this.connection.from(this.tableName).select('*')
         } catch (error) {
             console.log("Error en getAll", error);
         }
@@ -24,19 +44,12 @@ class ProductControler {
             console.log("Error en getById", error);
         }
     }
-    addProduct(object) {
+    async addProduct(object) {
         try {
             const { tittle, price, thumbnail } = object
             const product = { tittle: tittle, price: price, thumbnail: thumbnail }
-            if (products.length === 0) {
-                product.id = 1
-            }
-            else {
-                const lastId = products[products.length - 1].id
-                product.id = lastId + 1
-            }
-            products.push(product)
-            return product
+            await this.connection(this.tableName).insert(product)
+            
         } catch (error) {
             console.log("Error en addProduct", error);
         }
@@ -73,6 +86,13 @@ class ProductControler {
             res.status(200).json(`Producto con id : ${id} eliminado exitosamente`)
         } catch (error) {
             console.log("Error en deleteById", error);
+        }
+    }
+    async deleteAll(){
+        try {
+            this.connection.from(this.tableName).del()
+        } catch (e) {
+            console.error("Error en deleteAll: ", e)
         }
     }
 }
